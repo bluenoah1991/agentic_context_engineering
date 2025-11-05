@@ -1,11 +1,11 @@
 # Agentic Context Engineering
 
-A simplified implementation of Agentic Context Engineering (ACE) for Claude Code that automatically learns and accumulates key points from conversation sessions.
+A simplified implementation of Agentic Context Engineering (ACE) for Claude Code that automatically learns and accumulates key points from reasoning trajectories.
 
 ## Features
 
-- **Automatic Key Point Extraction**: Learns from each conversation and extracts valuable insights
-- **Score-Based Filtering**: Evaluates key points across sessions and removes unhelpful ones
+- **Automatic Key Point Extraction**: Learns from reasoning trajectories and extracts valuable insights
+- **Score-Based Filtering**: Evaluates key points across trajectories and removes unhelpful ones
 - **Context Injection**: Automatically injects accumulated knowledge at the start of new sessions
 - **Multiple Triggers**: Works on session end, manual clear (`/clear`), and context compaction
 
@@ -46,12 +46,12 @@ The system uses three types of hooks:
 
 ### Key Point Lifecycle
 
-1. **Extraction**: At the end of each session, the system analyzes the conversation and extracts new key points
-2. **Evaluation**: Existing key points are rated as helpful/harmful/neutral
+1. **Extraction**: At the end of each session, the system analyzes the reasoning trajectories and extracts new key points
+2. **Evaluation**: Existing key points are evaluated based on the reasoning trajectories and rated as helpful/harmful/neutral
 3. **Scoring**: 
    - Helpful: +1 point
-   - Harmful: -1 point
-   - Neutral: 0 points
+   - Harmful: -3 points
+   - Neutral: -1 point
 4. **Pruning**: Key points with score ≤ -5 are automatically removed
 5. **Injection**: Surviving key points are injected into new sessions
 
@@ -76,7 +76,7 @@ rm .claude/diagnostic_mode
 
 Prompts are located in `.claude/prompts/`:
 
-- `reflection.txt`: Template for key point extraction
+- `reflection.txt`: Template for key point extraction from reasoning trajectories
 - `playbook.txt`: Template for injecting key points into sessions
 
 ## File Structure

@@ -20,10 +20,5 @@ wheels/
 .installed.cfg
 *.egg
 
-# Claude Code generated files
-.claude/diagnostic/
-.claude/last_session.txt
-.claude/playbook.json
-
 # OS
 .DS_Store

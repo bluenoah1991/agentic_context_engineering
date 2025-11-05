@@ -1,0 +1,7 @@
+# Playbook
+
+The following key points were learned from previous sessions:
+
+{key_points}
+
+Use these key points to improve your responses.

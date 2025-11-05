@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""Shared utilities for hooks"""
+import json
+import os
+from pathlib import Path
+from datetime import datetime
+
+try:
+    from claude_agent_sdk import (
+        ClaudeAgentOptions, ClaudeSDKClient, AssistantMessage, TextBlock
+    )
+    SDK_AVAILABLE = True
+except ImportError:
+    SDK_AVAILABLE = False
+
+
+def get_project_dir() -> Path:
+    """Get project directory"""
+    project_dir = os.getenv('CLAUDE_PROJECT_DIR')
+    if project_dir:
+        return Path(project_dir)
+    return Path(__file__).resolve().parent.parent.parent
+
+
+def generate_keypoint_name(existing_names: set) -> str:
+    """Generate unique key point name (kpt_001 format)"""
+    max_num = 0
+    for name in existing_names:
+        if name.startswith("kpt_"):
+            try:
+                num = int(name.split("_")[1])
+                max_num = max(max_num, num)
+            except (IndexError, ValueError):
+                continue
+    
+    return f"kpt_{max_num + 1:03d}"
+
+
+def load_playbook() -> dict:
+    """Load playbook with automatic migration"""
+    playbook_path = get_project_dir() / ".claude" / "playbook.json"
+    
+    if not playbook_path.exists():
+        return {"version": "1.0", "last_updated": None, "key_points": []}
+    
+    try:
+        with open(playbook_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            
+        if "key_points" not in data:
+            data["key_points"] = []
+            
+        # Ensure all key points have name and score
+        keypoints = []
+        existing_names = set()
+        
+        for item in data["key_points"]:
+            if isinstance(item, str):
+                name = generate_keypoint_name(existing_names)
+                keypoints.append({"name": name, "text": item, "score": 0})
+                existing_names.add(name)
+            elif isinstance(item, dict):
+                if "name" not in item:
+                    item["name"] = generate_keypoint_name(existing_names)
+                if "score" not in item:
+                    item["score"] = 0
+                existing_names.add(item["name"])
+                keypoints.append(item)
+        
+        data["key_points"] = keypoints
+        return data
+        
+    except Exception:
+        return {"version": "1.0", "last_updated": None, "key_points": []}
+
+
+def save_playbook(playbook: dict):
+    """Save playbook"""
+    playbook["last_updated"] = datetime.now().isoformat()
+    playbook_path = get_project_dir() / ".claude" / "playbook.json"
+    
+    playbook_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(playbook_path, 'w', encoding='utf-8') as f:
+        json.dump(playbook, f, indent=2, ensure_ascii=False)
+
+
+def update_playbook_data(playbook: dict, extraction_result: dict) -> dict:
+    """Add new key points and update scores based on evaluations"""
+    new_key_points = extraction_result.get("new_key_points", [])
+    evaluations = extraction_result.get("evaluations", [])
+    
+    existing_names = {kp["name"] for kp in playbook["key_points"]}
+    existing_texts = {kp["text"] for kp in playbook["key_points"]}
+    
+    # Add new key points
+    for text in new_key_points:
+        if text and text not in existing_texts:
+            name = generate_keypoint_name(existing_names)
+            playbook["key_points"].append({"name": name, "text": text, "score": 0})
+            existing_names.add(name)
+    
+    # Update scores
+    rating_delta = {"helpful": 1, "harmful": -1, "neutral": 0}
+    name_to_kp = {kp["name"]: kp for kp in playbook["key_points"]}
+    
+    for eval_item in evaluations:
+        name = eval_item.get("name", "")
+        rating = eval_item.get("rating", "neutral")
+        
+        if name in name_to_kp:
+            name_to_kp[name]["score"] += rating_delta.get(rating, 0)
+    
+    # Remove key points with score <= -5
+    playbook["key_points"] = [kp for kp in playbook["key_points"] if kp.get("score", 0) > -5]
+    
+    return playbook
+
+
+def load_transcript(transcript_path: str) -> list[dict]:
+    """Extract user/assistant messages from transcript"""
+    conversations = []
+    
+    with open(transcript_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            if not line.strip():
+                continue
+            
+            entry = json.loads(line)
+            
+            if entry.get('type') not in ['user', 'assistant']:
+                continue
+            if entry.get('isMeta') or entry.get('isVisibleInTranscriptOnly'):
+                continue
+            
+            message = entry.get('message', {})
+            role = message.get('role')
+            content = message.get('content', '')
+            
+            if not role or not content:
+                continue
+            
+            if isinstance(content, str) and ('<command-name>' in content or '<local-command-stdout>' in content):
+                continue
+            
+            if isinstance(content, list):
+                text_parts = [
+                    item.get('text', '')
+                    for item in content
+                    if isinstance(item, dict) and item.get('type') == 'text'
+                ]
+                if text_parts:
+                    conversations.append({'role': role, 'content': '\n'.join(text_parts)})
+            else:
+                conversations.append({'role': role, 'content': content})
+    
+    return conversations
+
+
+async def extract_keypoints(messages: list[dict], playbook: dict, diagnostic_name: str = "reflection") -> dict:
+    """Extract new key points and evaluate existing ones"""
+    if not SDK_AVAILABLE:
+        return {"new_key_points": [], "evaluations": []}
+    
+    template = load_template("reflection.txt")
+    
+    playbook_dict = {
+        kp["name"]: kp["text"]
+        for kp in playbook["key_points"]
+    } if playbook["key_points"] else {}
+    
+    prompt = template.format(
+        trajectories=json.dumps(messages, indent=2, ensure_ascii=False),
+        playbook=json.dumps(playbook_dict, indent=2, ensure_ascii=False)
+    )
+    
+    options = ClaudeAgentOptions(
+        max_turns=1,
+        permission_mode="bypassPermissions",
+        allowed_tools=[]
+    )
+    
+    response_text = ""
+    client = ClaudeSDKClient(options=options)
+    
+    try:
+        await client.connect()
+        await client.query(prompt)
+        
+        async for message in client.receive_response():
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, TextBlock):
+                        response_text += block.text
+    finally:
+        await client.disconnect()
+    
+    if is_diagnostic_mode():
+        save_diagnostic(f"# PROMPT\n{prompt}\n\n{'=' * 80}\n\n# RESPONSE\n{response_text}\n",
+                       diagnostic_name)
+    
+    # Parse JSON response
+    if "```json" in response_text:
+        start = response_text.find("```json") + 7
+        end = response_text.find("```", start)
+        json_text = response_text[start:end].strip()
+    elif "```" in response_text:
+        start = response_text.find("```") + 3
+        end = response_text.find("```", start)
+        json_text = response_text[start:end].strip()
+    else:
+        json_text = response_text.strip()
+    
+    result = json.loads(json_text)
+    return {
+        "new_key_points": result.get("new_key_points", []),
+        "evaluations": result.get("evaluations", [])
+    }
+
+
+def load_template(template_name: str) -> str:
+    """Load prompt template"""
+    template_path = get_project_dir() / ".claude" / "prompts" / template_name
+    with open(template_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+def is_diagnostic_mode() -> bool:
+    """Check if diagnostic mode is enabled"""
+    flag_file = get_project_dir() / ".claude" / "diagnostic_mode"
+    return flag_file.exists()
+
+
+def save_diagnostic(content: str, name: str):
+    """Save diagnostic output"""
+    diagnostic_dir = get_project_dir() / ".claude" / "diagnostic"
+    diagnostic_dir.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filepath = diagnostic_dir / f"{timestamp}_{name}.txt"
+    
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)

@@ -1,0 +1,33 @@
+# Task
+Extract key points from reasoning trajectories and evaluate existing playbook key points.
+
+# Reasoning Trajectories
+{trajectories}
+
+# Current Playbook
+{playbook}
+
+# Instructions
+1. Key points should have reference value for future sessions, such as:
+   - Failed approaches to avoid
+   - Successful solutions and patterns
+   - User preferences and habits
+
+2. Extract NEW key points from trajectories that are NOT already in the Current Playbook
+
+3. Evaluate EACH existing playbook key point by its name:
+   - "helpful": key point was useful/applied correctly
+   - "harmful": key point caused issues/wrong guidance
+   - "neutral": key point not relevant to this session
+
+# Output Format
+{{
+  "new_key_points": [
+    "First key point extracted from the session",
+    "Second key point extracted from the session"
+  ],
+  "evaluations": [
+    {{"name": "kpt_001", "rating": "helpful"}},
+    {{"name": "kpt_002", "rating": "neutral"}}
+  ]
+}}

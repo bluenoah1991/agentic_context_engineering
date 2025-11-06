@@ -1,7 +1,7 @@
 {
   "name": "agentic-context-engineering",
   "version": "1.0.0",
-  "description": "Agentic Context Engineering - Automatic learning and knowledge accumulation system for Claude Code that  extracts key points from conversations and injects them into future sessions.",
+  "description": "Agentic Context Engineering - Automatic learning and knowledge accumulation system for Claude Code that extracts key points from conversations and injects them into future sessions.",
   "main": "install.js",
   "scripts": {
     "install": "node install.js"

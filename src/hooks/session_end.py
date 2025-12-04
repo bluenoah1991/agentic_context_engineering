@@ -20,10 +20,16 @@ async def main():
 
     settings = load_settings()
     update_on_exit = settings.get("playbook_update_on_exit", False)
+    update_on_clear = settings.get("playbook_update_on_clear", False)
 
-    # Skip playbook update for /exit command when setting is disabled
     reason = input_data.get("reason", "")
+    
+    # Skip playbook update for /exit command when setting is disabled
     if not update_on_exit and reason == "prompt_input_exit":
+        sys.exit(0)
+    
+    # Skip playbook update for /clear command when setting is disabled
+    if not update_on_clear and reason == "clear":
         sys.exit(0)
 
     playbook = load_playbook()

@@ -80,14 +80,14 @@ def load_settings() -> dict:
     settings_path = get_user_claude_dir() / "settings.json"
 
     if not settings_path.exists():
-        return {"playbook_update_on_exit": False}
+        return {"playbook_update_on_exit": False, "playbook_update_on_clear": False}
 
     try:
         with open(settings_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return data
     except Exception:
-        return {"playbook_update_on_exit": False}
+        return {"playbook_update_on_exit": False, "playbook_update_on_clear": False}
 
 
 def load_playbook() -> dict:

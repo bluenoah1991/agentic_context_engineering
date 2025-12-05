@@ -232,23 +232,19 @@ async def extract_keypoints(
     if not ANTHROPIC_AVAILABLE:
         return {"new_key_points": [], "evaluations": []}
 
-    settings = load_settings()
-    model = (
-        settings.get("model")
-        or os.getenv("ANTHROPIC_MODEL")
-        or os.getenv("ANTHROPIC_DEFAULT_SONNET_MODEL")
-        or os.getenv("ANTHROPIC_DEFAULT_OPUS_MODEL")
-        or os.getenv("ANTHROPIC_DEFAULT_HAIKU_MODEL")
-        or os.getenv("CLAUDE_CODE_SUBAGENT_MODEL")
-    )
+    model = os.getenv("AGENTIC_CONTEXT_MODEL")
     if not model:
         return {"new_key_points": [], "evaluations": []}
 
-    api_key = os.getenv("ANTHROPIC_AUTH_TOKEN") or os.getenv("ANTHROPIC_API_KEY")
+    api_key = (
+        os.getenv("AGENTIC_CONTEXT_API_KEY")
+        or os.getenv("ANTHROPIC_AUTH_TOKEN")
+        or os.getenv("ANTHROPIC_API_KEY")
+    )
     if not api_key:
         return {"new_key_points": [], "evaluations": []}
 
-    base_url = os.getenv("ANTHROPIC_BASE_URL")
+    base_url = os.getenv("AGENTIC_CONTEXT_BASE_URL") or os.getenv("ANTHROPIC_BASE_URL")
     if not base_url:
         return {"new_key_points": [], "evaluations": []}
 

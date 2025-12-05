@@ -36,7 +36,7 @@ pip3 install anthropic
 
 | Environment Variable | Description | Required |
 |---------------------|-------------|----------|
-| `AGENTIC_CONTEXT_MODEL` | Model name for key point extraction (fallback: `settings.model`, `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, `claude-sonnet-4-5-20250929`) | Optional |
+| `AGENTIC_CONTEXT_MODEL` | Model name for key point extraction (fallback: `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, `claude-sonnet-4-5-20250929`) | Optional |
 | `AGENTIC_CONTEXT_API_KEY` | API key (fallback: `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY`) | Optional |
 | `AGENTIC_CONTEXT_BASE_URL` | API base URL (fallback: `ANTHROPIC_BASE_URL`) | Optional |
 

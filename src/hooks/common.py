@@ -236,7 +236,6 @@ async def extract_keypoints(
 
     model = (
         os.getenv("AGENTIC_CONTEXT_MODEL")
-        or settings.get("model")
         or os.getenv("ANTHROPIC_MODEL")
         or os.getenv("ANTHROPIC_DEFAULT_SONNET_MODEL")
         or "claude-sonnet-4-5-20250929"
